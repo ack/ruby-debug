@@ -34,7 +34,7 @@
 ;;
 
 (defconst gud-rdebug-marker-regexp
-  "\\(?:source \\)?\\(\\(?:[a-zA-Z]:\\)?[^:\n]*\\):\\([0-9]*\\).*\n"
+  "^\\(.*\\)? \\(\\(?:[a-zA-Z]:\\)?[^:\n]*\\):\\([0-9]*\\).*\n"
   "Regular expression used to find a file location given by rdebug.
 
 Program-location lines look like this:
@@ -55,7 +55,7 @@ Program-location lines look like this:
 ;; ^Z^Zsource foo.rb:10\n
 
 (defconst rdebug-annotation-start-regexp
-  "\\(\\([a-z][-a-z]*\\)?\n\\|source \\)"
+  "\\(\\([a-z][-a-z]*\\)?\n\\|stack \\)"
   "Regular expression to match the start of an annotation.")
 
 (defconst rdebug-breakpoint-regexp

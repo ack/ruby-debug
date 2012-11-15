@@ -222,13 +222,16 @@ Return (item . rest) or nil."
                          (if (string-match "post-mortem" contents)
                              (setq rdebug-inferior-status "crashed"))
                          (setq shell-output (concat shell-output contents)))
-                        ((string= name "source")
+                        ;; when did this ever work
+                        ((string= name "stack")
                          (if (string-match gud-rdebug-marker-regexp item)
                              ;; Extract the frame position from the marker.
 			     (setq gud-last-frame
-				   (cons (match-string 1 item)
+				   (cons (match-string 2 item)
 					 (string-to-number
-					  (match-string 2 item))))))
+					  (match-string 3 item))))
+                             (message "MISSING SOURCE FILE")
+                           ))
                         (t (rdebug-process-annotation name contents))))
               ;; This is not a one-liner, and we haven't seen the next
               ;; annotation, so we have to treat this as a partial
