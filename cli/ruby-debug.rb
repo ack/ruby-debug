@@ -62,36 +62,50 @@ module Debugger
       
       mutex = Mutex.new
       proceed = ConditionVariable.new
-      
+
+      # FIXME: optparse
+      exit_on_disconnect = false
+
       @thread = DebugThread.new do
+        puts "<COMMAND THREAD STARTING>"
         server = TCPServer.new(host, cmd_port)
-        while (session = server.accept)
-          self.interface = RemoteInterface.new(session)
-          if wait_connection
-            mutex.synchronize do
-              proceed.signal
+        while true
+          while (session = server.accept)
+            self.interface = RemoteInterface.new(session)
+            if wait_connection
+              mutex.synchronize do
+                proceed.signal
+              end
             end
           end
+          break if exit_on_disconnect
         end
-      end
+        puts "<COMMAND THREAD EXITING>"
+      end # DebugThread.new
+
       if wait_connection
+        puts "Waiting for connections on #{host}:#{cmd_port}"
         mutex.synchronize do
           proceed.wait(mutex)
-        end 
+        end
       end
+      puts "PID:#{$$}"
     end
     alias start_server start_remote
     
     def start_control(host = nil, ctrl_port = PORT + 1) # :nodoc:
+      raise "Debugger is not started" unless started?
       return if defined?(@control_thread) && @control_thread
       @control_thread = DebugThread.new do
+        puts "<CONTROL THREAD STARTING>"
         server = TCPServer.new(host, ctrl_port)
         while (session = server.accept)
           interface = RemoteInterface.new(session)
           processor = ControlCommandProcessor.new(interface)
           processor.process_commands
         end
-      end
+        puts "<CONTROL THREAD EXITING>"
+      end # DebugThread.new
     end
     
     #
@@ -101,13 +115,35 @@ module Debugger
       require "socket"
       interface = Debugger::LocalInterface.new
       socket = TCPSocket.new(host, port)
-      puts "Connected."
-      
+      if ENV['EMACS']
+        print "\032\032starting\n" # mirrors non-remote --client
+      else
+        print "Connected.\n" # preserve old behavior
+      end
+
       catch(:exit) do
-        while (line = socket.gets)
-          case line 
+        trap(:INT) do
+          STDERR.puts "\nABORTED"
+          interface.finalize
+          throw :exit
+        end
+        while true
+          begin
+            line = socket.gets
+          rescue Errno::ECONNABORTED, Errno::ECONNRESET
+            print "Disconnected\n"
+            throw :exit
+          end
+
+          case line
+          when nil
+            break
           when /^PROMPT (.*)$/
-            input = interface.read_command($1)
+            prompt = $1
+            prompt = socket.gets.chomp # next is actual prompt
+            sanity = socket.gets
+            throw :exit unless sanity =~ /PROMPT/i
+            input = interface.read_command(prompt)
             throw :exit unless input
             socket.puts input
           when /^CONFIRM (.*)$/
@@ -119,6 +155,8 @@ module Debugger
           end
         end
       end
+
+      interface.finalize
       socket.close
     end
     
@@ -161,7 +199,7 @@ module Kernel
   # right after the last statement in some scope, because the next
   # step will take you out of some scope.
   def debugger(steps = 1)
-    Debugger.start
+    Debugger.start unless Debugger.started?
     Debugger.run_init_script(StringIO.new)
     if 0 == steps
       Debugger.current_context.stop_frame = 0
