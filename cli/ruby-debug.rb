@@ -63,24 +63,18 @@ module Debugger
       mutex = Mutex.new
       proceed = ConditionVariable.new
 
-      # FIXME: optparse
-      exit_on_disconnect = false
-
       @thread = DebugThread.new do
-        puts "<COMMAND THREAD STARTING>"
+        #puts "<COMMAND THREAD STARTING>"
         server = TCPServer.new(host, cmd_port)
-        while true
-          while (session = server.accept)
-            self.interface = RemoteInterface.new(session)
-            if wait_connection
-              mutex.synchronize do
-                proceed.signal
-              end
+        while (session = server.accept)
+          self.interface = RemoteInterface.new(session)
+          if wait_connection
+            mutex.synchronize do
+              proceed.signal
             end
           end
-          break if exit_on_disconnect
         end
-        puts "<COMMAND THREAD EXITING>"
+        #puts "<COMMAND THREAD EXITING>"
       end # DebugThread.new
 
       if wait_connection
@@ -96,15 +90,16 @@ module Debugger
     def start_control(host = nil, ctrl_port = PORT + 1) # :nodoc:
       raise "Debugger is not started" unless started?
       return if defined?(@control_thread) && @control_thread
+
       @control_thread = DebugThread.new do
-        puts "<CONTROL THREAD STARTING>"
+        #puts "<CONTROL THREAD STARTING>"
         server = TCPServer.new(host, ctrl_port)
         while (session = server.accept)
           interface = RemoteInterface.new(session)
           processor = ControlCommandProcessor.new(interface)
           processor.process_commands
         end
-        puts "<CONTROL THREAD EXITING>"
+        #puts "<CONTROL THREAD EXITING>"
       end # DebugThread.new
     end
     
