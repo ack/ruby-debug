@@ -140,6 +140,11 @@ Return (item . rest) or nil."
                            (setq item (car pair))
                            (setq gud-marker-acc (cdr pair))
                            t))))
+
+        ; FIXME: doc this is for legacy versions of ruby-debug
+        (if (string-match "Connected.*$" item)
+            (setq item (replace-regexp-in-string "Connected." "\032\032starting" item :FIXEDCASE)))
+
         ;; Note: Regexp:s are greedy, i.e. the char parts wins over
         ;; the .* part.
         (if (not (string-match "^\032\032\\([-a-z]*\\).*\n" item))
